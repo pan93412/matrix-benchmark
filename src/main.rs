@@ -20,7 +20,7 @@ impl<const ROWS: usize, const COLS: usize> Matrix<ROWS, COLS> {
         Matrix(data)
     }
 
-    fn zeros() -> Self {
+    const fn zeros() -> Self {
         Matrix([[0.0; COLS]; ROWS])
     }
 }
