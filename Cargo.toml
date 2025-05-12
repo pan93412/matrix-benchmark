@@ -1,0 +1,9 @@
+[package]
+name = "matrixcc"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+num_cpus = "1.16.0"
+rand = { version = "0.9.1", features = ["nightly"] }
+rayon = "1.10.0"
