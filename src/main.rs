@@ -6,34 +6,26 @@ use std::time::Instant;
 const SIZE: usize = 500; // Use 500 for demonstration; increase for real benchmarking
 
 #[derive(Clone)]
-struct Matrix(Vec<Vec<f64>>);
+struct Matrix<const ROWS: usize, const COLS: usize>([[f64; COLS]; ROWS]);
 
-impl Matrix {
-    fn random(rows: usize, cols: usize) -> Self {
+impl<const ROWS: usize, const COLS: usize> Matrix<ROWS, COLS> {
+    fn random() -> Self {
         let mut rng = rand::rng();
-        let data = (0..rows)
-            .map(|_| (0..cols).map(|_| rng.random::<f64>() * 10.0).collect())
-            .collect();
+
+        // write random values to the matrix
+        let data = std::array::from_fn(|_| {
+            std::array::from_fn(|_| rng.random::<f64>() * 10.0)
+        });
+
         Matrix(data)
     }
 
-    fn zeros(rows: usize, cols: usize) -> Self {
-        Matrix(vec![vec![0.0; cols]; rows])
-    }
-
-    fn rows(&self) -> usize {
-        self.0.len()
-    }
-    fn cols(&self) -> usize {
-        if self.0.is_empty() {
-            0
-        } else {
-            self.0[0].len()
-        }
+    fn zeros() -> Self {
+        Matrix([[0.0; COLS]; ROWS])
     }
 }
 
-impl fmt::Display for Matrix {
+impl<const ROWS: usize, const COLS: usize> fmt::Display for Matrix<ROWS, COLS> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, row) in self.0.iter().enumerate() {
             write!(f, "[")?;
@@ -53,18 +45,16 @@ impl fmt::Display for Matrix {
     }
 }
 
-// Single-threaded matrix multiplication (with optional SIMD)
-fn multiply(a: &Matrix, b: &Matrix) -> Matrix {
-    let rows = a.rows();
-    let cols = b.cols();
-    let inner = a.cols();
-    let mut result = Matrix::zeros(rows, cols);
+// Single-threaded matrix multiplication
+fn multiply<const ROWS: usize, const COLS: usize, const INNER: usize>(a: &Matrix<INNER, COLS>, b: &Matrix<ROWS, INNER>) -> Matrix<ROWS, INNER>
+{
+    let mut result = Matrix::zeros();
 
-    for i in 0..rows {
-        for j in 0..cols {
+    for i in 0..ROWS {
+        for j in 0..COLS {
             let mut sum = 0.0;
             {
-                for k in 0..inner {
+                for k in 0..INNER {
                     sum += a.0[i][k] * b.0[k][j];
                 }
             }
@@ -75,11 +65,8 @@ fn multiply(a: &Matrix, b: &Matrix) -> Matrix {
 }
 
 // Multi-threaded matrix multiplication using Rayon
-fn multiply_parallel(a: &Matrix, b: &Matrix, num_threads: usize) -> Matrix {
-    let rows = a.rows();
-    let cols = b.cols();
-    let inner = a.cols();
-    let mut result = Matrix::zeros(rows, cols);
+fn multiply_parallel<const ROWS: usize, const COLS: usize, const INNER: usize>(a: &Matrix<INNER, COLS>, b: &Matrix<ROWS, INNER>, num_threads: usize) -> Matrix<ROWS, INNER> {
+    let mut result = Matrix::zeros();
 
     rayon::ThreadPoolBuilder::new()
         .num_threads(num_threads)
@@ -90,7 +77,7 @@ fn multiply_parallel(a: &Matrix, b: &Matrix, num_threads: usize) -> Matrix {
         for (j, elem) in row.iter_mut().enumerate() {
             let mut sum = 0.0;
             {
-                for k in 0..inner {
+                for k in 0..INNER {
                     sum += a.0[i][k] * b.0[k][j];
                 }
             }
@@ -102,8 +89,8 @@ fn multiply_parallel(a: &Matrix, b: &Matrix, num_threads: usize) -> Matrix {
 
 fn main() {
     println!("Generating random matrices...");
-    let matrix_a = Matrix::random(SIZE, SIZE);
-    let matrix_b = Matrix::random(SIZE, SIZE);
+    let matrix_a = Matrix::<SIZE, SIZE>::random();
+    let matrix_b = Matrix::<SIZE, SIZE>::random();
 
     println!("\n=== Matrix Multiplication Performance Test ===");
     println!("Matrix size: {SIZE}x{SIZE}");
