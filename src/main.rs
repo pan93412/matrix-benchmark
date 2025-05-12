@@ -41,7 +41,8 @@ impl fmt::Display for Matrix {
                 if j > 0 {
                     write!(f, " ")?;
                 }
-                write!(f, "{:.2}", val)?;
+
+                write!(f, "{val:.2}")?;
             }
             write!(f, "]")?;
             if i < self.0.len() - 1 {
@@ -86,14 +87,14 @@ fn multiply_parallel(a: &Matrix, b: &Matrix, num_threads: usize) -> Matrix {
         .ok();
 
     result.0.par_iter_mut().enumerate().for_each(|(i, row)| {
-        for j in 0..cols {
+        for (j, elem) in row.iter_mut().enumerate() {
             let mut sum = 0.0;
             {
                 for k in 0..inner {
                     sum += a.0[i][k] * b.0[k][j];
                 }
             }
-            row[j] = sum;
+            *elem = sum;
         }
     });
     result
@@ -105,7 +106,7 @@ fn main() {
     let matrix_b = Matrix::random(SIZE, SIZE);
 
     println!("\n=== Matrix Multiplication Performance Test ===");
-    println!("Matrix size: {}x{}", SIZE, SIZE);
+    println!("Matrix size: {SIZE}x{SIZE}");
     println!("Number of available CPU cores: {}", num_cpus::get());
 
     println!(
@@ -119,31 +120,28 @@ fn main() {
     );
 
     // [A] For-loops (1 thread)
-    let mut forloop_times = [0.0; 3];
-    for round in 0..3 {
+    let forloop_times = (0..3).map(|_| {
         let start = Instant::now();
         let _ = multiply(&matrix_a, &matrix_b);
-        forloop_times[round] = start.elapsed().as_secs_f64() * 1000.0;
-    }
-    let forloop_avg = (forloop_times[0] + forloop_times[1] + forloop_times[2]) / 3.0;
+        start.elapsed().as_secs_f64() * 1000.0
+    }).collect::<Vec<_>>();
+    let forloop_avg = forloop_times.iter().sum::<f64>() / 3.0;
 
     // [B1] Multithread (50 threads)
-    let mut b1_times = [0.0; 3];
-    for round in 0..3 {
+    let b1_times = (0..3).map(|_| {
         let start = Instant::now();
         let _ = multiply_parallel(&matrix_a, &matrix_b, 50);
-        b1_times[round] = start.elapsed().as_secs_f64() * 1000.0;
-    }
-    let b1_avg = (b1_times[0] + b1_times[1] + b1_times[2]) / 3.0;
+        start.elapsed().as_secs_f64() * 1000.0
+    }).collect::<Vec<_>>();
+    let b1_avg = b1_times.iter().sum::<f64>() / 3.0;
 
     // [B2] Multithread (10 threads)
-    let mut b2_times = [0.0; 3];
-    for round in 0..3 {
+    let b2_times = (0..3).map(|_| {
         let start = Instant::now();
         let _ = multiply_parallel(&matrix_a, &matrix_b, 10);
-        b2_times[round] = start.elapsed().as_secs_f64() * 1000.0;
-    }
-    let b2_avg = (b2_times[0] + b2_times[1] + b2_times[2]) / 3.0;
+        start.elapsed().as_secs_f64() * 1000.0
+    }).collect::<Vec<_>>();
+    let b2_avg = b2_times.iter().sum::<f64>() / 3.0;
 
     println!(
         "| [A]         | 1              | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
