@@ -25,7 +25,11 @@ impl Matrix {
         self.0.len()
     }
     fn cols(&self) -> usize {
-        if self.0.is_empty() { 0 } else { self.0[0].len() }
+        if self.0.is_empty() {
+            0
+        } else {
+            self.0[0].len()
+        }
     }
 }
 
@@ -34,11 +38,15 @@ impl fmt::Display for Matrix {
         for (i, row) in self.0.iter().enumerate() {
             write!(f, "[")?;
             for (j, val) in row.iter().enumerate() {
-                if j > 0 { write!(f, " ")?; }
+                if j > 0 {
+                    write!(f, " ")?;
+                }
                 write!(f, "{:.2}", val)?;
             }
             write!(f, "]")?;
-            if i < self.0.len() - 1 { writeln!(f)?; }
+            if i < self.0.len() - 1 {
+                writeln!(f)?;
+            }
         }
         Ok(())
     }
@@ -72,7 +80,10 @@ fn multiply_parallel(a: &Matrix, b: &Matrix, num_threads: usize) -> Matrix {
     let inner = a.cols();
     let mut result = Matrix::zeros(rows, cols);
 
-    rayon::ThreadPoolBuilder::new().num_threads(num_threads).build_global().ok();
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build_global()
+        .ok();
 
     result.0.par_iter_mut().enumerate().for_each(|(i, row)| {
         for j in 0..cols {
@@ -97,9 +108,15 @@ fn main() {
     println!("Matrix size: {}x{}", SIZE, SIZE);
     println!("Number of available CPU cores: {}", num_cpus::get());
 
-    println!("\n+-------------+----------------+-----------------------+-----------------------+-----------------------+---------------+");
-    println!("|    Skill    |  No. threads   |    1-round (ms)       |     2-round (ms)      |     3-round (ms)      |  Average (ms) |");
-    println!("+-------------+----------------+-----------------------+-----------------------+-----------------------+---------------+");
+    println!(
+        "\n+-------------+----------------+-----------------------+-----------------------+-----------------------+---------------+"
+    );
+    println!(
+        "|    Skill    |  No. threads   |    1-round (ms)       |     2-round (ms)      |     3-round (ms)      |  Average (ms) |"
+    );
+    println!(
+        "+-------------+----------------+-----------------------+-----------------------+-----------------------+---------------+"
+    );
 
     // [A] For-loops (1 thread)
     let mut forloop_times = [0.0; 3];
@@ -128,25 +145,47 @@ fn main() {
     }
     let b2_avg = (b2_times[0] + b2_times[1] + b2_times[2]) / 3.0;
 
-    println!("| [A]         | 1              | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
-        forloop_times[0], forloop_times[1], forloop_times[2], forloop_avg);
-    println!("| For-loops   | (50*50/thread) |                       |                       |                       |               |");
+    println!(
+        "| [A]         | 1              | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
+        forloop_times[0], forloop_times[1], forloop_times[2], forloop_avg
+    );
+    println!(
+        "| For-loops   | (50*50/thread) |                       |                       |                       |               |"
+    );
 
-    println!("| [B1]        | 50             | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
-        b1_times[0], b1_times[1], b1_times[2], b1_avg);
-    println!("| Multithread | (50*1/thread)  |                       |                       |                       |               |");
+    println!(
+        "| [B1]        | 50             | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
+        b1_times[0], b1_times[1], b1_times[2], b1_avg
+    );
+    println!(
+        "| Multithread | (50*1/thread)  |                       |                       |                       |               |"
+    );
 
-    println!("| [B2]        | 10             | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
-        b2_times[0], b2_times[1], b2_times[2], b2_avg);
-    println!("| Multithread | (50*5/thread)  |                       |                       |                       |               |");
+    println!(
+        "| [B2]        | 10             | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
+        b2_times[0], b2_times[1], b2_times[2], b2_avg
+    );
+    println!(
+        "| Multithread | (50*5/thread)  |                       |                       |                       |               |"
+    );
 
-    println!("| Differences | 49             |                       |                       |                       | {:13.2} |",
-        forloop_avg - b1_avg);
-    println!("| [B1 - A]    |                |                       |                       |                       |               |");
+    println!(
+        "| Differences | 49             |                       |                       |                       | {:13.2} |",
+        forloop_avg - b1_avg
+    );
+    println!(
+        "| [B1 - A]    |                |                       |                       |                       |               |"
+    );
 
-    println!("| Differences | 9              |                       |                       |                       | {:13.2} |",
-        forloop_avg - b2_avg);
-    println!("| [B2 - A]    |                |                       |                       |                       |               |");
+    println!(
+        "| Differences | 9              |                       |                       |                       | {:13.2} |",
+        forloop_avg - b2_avg
+    );
+    println!(
+        "| [B2 - A]    |                |                       |                       |                       |               |"
+    );
 
-    println!("+-------------+----------------+-----------------------+-----------------------+-----------------------+---------------+");
+    println!(
+        "+-------------+----------------+-----------------------+-----------------------+-----------------------+---------------+"
+    );
 }
