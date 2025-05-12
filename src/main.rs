@@ -3,7 +3,7 @@ use rayon::prelude::*;
 use std::fmt;
 use std::time::Instant;
 
-const SIZE: usize = 500; // Use 500 for demonstration; increase for real benchmarking
+const SIZE: usize = 700; // Use 700 for demonstration; increase for real benchmarking
 
 #[derive(Clone)]
 struct Matrix<const ROWS: usize, const COLS: usize>([[f64; COLS]; ROWS]);
@@ -34,7 +34,7 @@ impl<const ROWS: usize, const COLS: usize> fmt::Display for Matrix<ROWS, COLS> {
                     write!(f, " ")?;
                 }
 
-                write!(f, "{val:.2}")?;
+                write!(f, "{val:.6}")?;
             }
             write!(f, "]")?;
             if i < self.0.len() - 1 {
@@ -46,10 +46,8 @@ impl<const ROWS: usize, const COLS: usize> fmt::Display for Matrix<ROWS, COLS> {
 }
 
 // Single-threaded matrix multiplication
-fn multiply<const ROWS: usize, const COLS: usize, const INNER: usize>(a: &Matrix<INNER, COLS>, b: &Matrix<ROWS, INNER>) -> Matrix<ROWS, INNER>
+fn multiply<const ROWS: usize, const COLS: usize, const INNER: usize>(a: &Matrix<INNER, COLS>, b: &Matrix<ROWS, INNER>, target: &mut Matrix<ROWS, INNER>)
 {
-    let mut result = Matrix::zeros();
-
     for i in 0..ROWS {
         for j in 0..COLS {
             let mut sum = 0.0;
@@ -58,22 +56,19 @@ fn multiply<const ROWS: usize, const COLS: usize, const INNER: usize>(a: &Matrix
                     sum += a.0[i][k] * b.0[k][j];
                 }
             }
-            result.0[i][j] = sum;
+            target.0[i][j] = sum;
         }
     }
-    result
 }
 
 // Multi-threaded matrix multiplication using Rayon
-fn multiply_parallel<const ROWS: usize, const COLS: usize, const INNER: usize>(a: &Matrix<INNER, COLS>, b: &Matrix<ROWS, INNER>, num_threads: usize) -> Matrix<ROWS, INNER> {
-    let mut result = Matrix::zeros();
-
+fn multiply_parallel<const ROWS: usize, const COLS: usize, const INNER: usize>(a: &Matrix<INNER, COLS>, b: &Matrix<ROWS, INNER>, num_threads: usize, target: &mut Matrix<ROWS, INNER>) {
     rayon::ThreadPoolBuilder::new()
         .num_threads(num_threads)
         .build_global()
         .ok();
 
-    result.0.par_iter_mut().enumerate().for_each(|(i, row)| {
+    target.0.par_iter_mut().enumerate().for_each(|(i, row)| {
         for (j, elem) in row.iter_mut().enumerate() {
             let mut sum = 0.0;
             {
@@ -84,13 +79,12 @@ fn multiply_parallel<const ROWS: usize, const COLS: usize, const INNER: usize>(a
             *elem = sum;
         }
     });
-    result
 }
 
 fn main() {
     println!("Generating random matrices...");
-    let matrix_a = Matrix::<SIZE, SIZE>::random();
-    let matrix_b = Matrix::<SIZE, SIZE>::random();
+    let matrix_a = Box::new(Matrix::<SIZE, SIZE>::random());
+    let matrix_b = Box::new(Matrix::<SIZE, SIZE>::random());
 
     println!("\n=== Matrix Multiplication Performance Test ===");
     println!("Matrix size: {SIZE}x{SIZE}");
@@ -109,7 +103,8 @@ fn main() {
     // [A] For-loops (1 thread)
     let forloop_times = (0..3).map(|_| {
         let start = Instant::now();
-        let _ = multiply(&matrix_a, &matrix_b);
+        let mut target = Box::new(Matrix::<SIZE, SIZE>::zeros());
+        multiply(&matrix_a, &matrix_b, &mut target);
         start.elapsed().as_secs_f64() * 1000.0
     }).collect::<Vec<_>>();
     let forloop_avg = forloop_times.iter().sum::<f64>() / 3.0;
@@ -117,7 +112,8 @@ fn main() {
     // [B1] Multithread (50 threads)
     let b1_times = (0..3).map(|_| {
         let start = Instant::now();
-        let _ = multiply_parallel(&matrix_a, &matrix_b, 50);
+        let mut target = Box::new(Matrix::<SIZE, SIZE>::zeros());
+        multiply_parallel(&matrix_a, &matrix_b, 50, &mut target);
         start.elapsed().as_secs_f64() * 1000.0
     }).collect::<Vec<_>>();
     let b1_avg = b1_times.iter().sum::<f64>() / 3.0;
@@ -125,13 +121,14 @@ fn main() {
     // [B2] Multithread (10 threads)
     let b2_times = (0..3).map(|_| {
         let start = Instant::now();
-        let _ = multiply_parallel(&matrix_a, &matrix_b, 10);
+        let mut target = Box::new(Matrix::<SIZE, SIZE>::zeros());
+        multiply_parallel(&matrix_a, &matrix_b, 10, &mut target);
         start.elapsed().as_secs_f64() * 1000.0
     }).collect::<Vec<_>>();
     let b2_avg = b2_times.iter().sum::<f64>() / 3.0;
 
     println!(
-        "| [A]         | 1              | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
+        "| [A]         | 1              | {:21.6} | {:21.6} | {:21.6} | {:13.6} |",
         forloop_times[0], forloop_times[1], forloop_times[2], forloop_avg
     );
     println!(
@@ -139,7 +136,7 @@ fn main() {
     );
 
     println!(
-        "| [B1]        | 50             | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
+        "| [B1]        | 50             | {:21.6} | {:21.6} | {:21.6} | {:13.6} |",
         b1_times[0], b1_times[1], b1_times[2], b1_avg
     );
     println!(
@@ -147,7 +144,7 @@ fn main() {
     );
 
     println!(
-        "| [B2]        | 10             | {:21.2} | {:21.2} | {:21.2} | {:13.2} |",
+        "| [B2]        | 10             | {:21.6} | {:21.6} | {:21.6} | {:13.6} |",
         b2_times[0], b2_times[1], b2_times[2], b2_avg
     );
     println!(
@@ -155,7 +152,7 @@ fn main() {
     );
 
     println!(
-        "| Differences | 49             |                       |                       |                       | {:13.2} |",
+        "| Differences | 49             |                       |                       |                       | {:13.6} |",
         forloop_avg - b1_avg
     );
     println!(
@@ -163,7 +160,7 @@ fn main() {
     );
 
     println!(
-        "| Differences | 9              |                       |                       |                       | {:13.2} |",
+        "| Differences | 9              |                       |                       |                       | {:13.6} |",
         forloop_avg - b2_avg
     );
     println!(
